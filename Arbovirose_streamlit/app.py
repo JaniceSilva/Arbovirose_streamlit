@@ -5,7 +5,7 @@ from components.charts import create_time_series_chart
 from components.maps import create_incidence_map
 
 @st.cache_data(ttl=3600)
-mport requests
+import requests
 import streamlit as st
 
 def load_data():
