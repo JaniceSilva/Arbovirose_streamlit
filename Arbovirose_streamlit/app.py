@@ -26,7 +26,7 @@ def get_realtime_data():
         data = pd.read_sql('epi_data', engine)
         # Ensure ' ..
 
-data' column is in datetime format
+# data' column is in datetime format
         if 'data' in data.columns:
             data['data'] = pd.to_datetime(data['data'])
         # Cache the data locally as a fallback
