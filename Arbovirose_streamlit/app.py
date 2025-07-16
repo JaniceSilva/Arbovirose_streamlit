@@ -69,12 +69,15 @@ def load_fallback_data():
 def main():
     st.title("Dashboard de Arboviroses")
     
-    # State selection
-    estados = ["Todos", "MG", "SP", "RJ"]
-    estado = st.selectbox("Estado", estados)
-    
-    # Period slider (days)
-    periodo = st.slider("Período (dias)", min_value=7, max_value=365, value=30)
+    # Sidebar for input controls
+    with st.sidebar:
+        st.header("Filtros")
+        # State selection
+        estados = ["Todos", "MG", "SP", "RJ"]
+        estado = st.selectbox("Estado", estados)
+        
+        # Period slider (days)
+        periodo = st.slider("Período (dias)", min_value=7, max_value=365, value=30)
     
     # Load data
     data = load_data()
