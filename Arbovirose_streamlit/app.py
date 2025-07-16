@@ -6,6 +6,28 @@ from datetime import datetime
 from components.charts import create_time_series_chart
 from components.maps import create_incidence_map
 
+import streamlit as st
+from flask import Flask, Response
+
+# Crie um servidor Flask oculto
+flask_app = Flask(__name__)
+
+@flask_app.route('/healthz')
+def health_check():
+    return Response("OK", status=200, mimetype='text/plain')
+
+# Inicie o Flask em uma thread separada
+def run_flask_app():
+    flask_app.run(host='0.0.0.0', port=5000)
+
+if __name__ == '__main__':
+    from threading import Thread
+    Thread(target=run_flask_app).start()
+    
+    # Seu código Streamlit normal aqui
+    st.title("Arbovirose Dashboard")
+    # ... restante do seu código
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
