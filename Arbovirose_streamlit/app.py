@@ -16,6 +16,21 @@ flask_app = Flask(__name__)
 def health_check():
     return Response("OK", status=200, mimetype='text/plain')
 
+import sys
+from flask import Flask, Response
+
+# Adiciona o caminho de instalação do Gunicorn ao PATH
+sys.path.append('/opt/render/.local/bin')
+
+# Configuração do health check
+health_app = Flask(__name__)
+
+@health_app.route('/healthz')
+def health_check():
+    return Response("OK", status=200)
+
+# ... resto do seu código Streamlit ...
+
 # Inicie o Flask em uma thread separada
 def run_flask_app():
     flask_app.run(host='0.0.0.0', port=5000)
