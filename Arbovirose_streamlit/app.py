@@ -5,18 +5,26 @@ from components.charts import create_time_series_chart
 from components.maps import create_incidence_map
 
 @st.cache_data(ttl=3600)
+mport requests
+import streamlit as st
+
 def load_data():
     try:
-        # Replace with your Render FastAPI URL
-        response = requests.get("https://your-fastapi-app.onrender.com/data", timeout=10)
-        response.raise_for_status()  # Raise exception for bad status codes
-        data = pd.DataFrame(response.json())
-        # Ensure 'data' column is datetime
-        data['data'] = pd.to_datetime(data['data'])
-        return data
+        response = requests.get("YOUR_API_URL", timeout=10)
+        response.raise_for_status()  # Raises an HTTPError for bad responses
+        return response.json()
+    except requests.exceptions.ConnectionError as e:
+        st.error(f"Failed to connect to the API: {str(e)}. Please check your network or API availability.")
+        return None
+    except requests.exceptions.HTTPError as e:
+        st.error(f"API returned an error: {str(e)}")
+        return None
+    except requests.exceptions.Timeout as e:
+        st.error(f"Request timed out: {str(e)}. Please try again later.")
+        return None
     except requests.exceptions.RequestException as e:
-        st.error(f"Erro ao carregar dados da API: {str(e)}")
-        return pd.DataFrame()
+        st.error(f"An unexpected error occurred while fetching data: {str(e)}")
+        return None
 
 def main():
     st.title("Dashboard de Arboviroses")
