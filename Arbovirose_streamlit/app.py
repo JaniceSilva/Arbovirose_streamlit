@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @st.cache_data(ttl=3600)
-def load_data(_url="https://api.saude.gov.br/arboviroses"):  # REPLACE with your actual API URL
+def load_data(_url="https://opendatasus.saude.gov.br/api/arboviroses"):  # REPLACE with actual API URL
     """
     Fetch data from the API with robust error handling and caching.
     Returns a pandas DataFrame or None if the request fails.
@@ -58,7 +58,7 @@ def load_fallback_data():
         logger.info("Loaded cached data from backup_data.json")
         return df
     except FileNotFoundError:
-        st.warning("No cached data available. Attempting to load sample data.")
+        st.warning("No cached data available. Loading sample data for testing.")
         logger.warning("No cached data found. Loading sample data.")
         return load_sample_data()
     except ValueError as e:
