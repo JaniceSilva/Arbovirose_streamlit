@@ -17,16 +17,13 @@ def get_realtime_data():
     Returns a pandas DataFrame or sample data if the query fails.
     """
     # Replace with your actual database connection string
-    # Example for PostgreSQL: "postgresql://user:password@host:port/database"
-    # Example for MySQL: "mysql+pymysql://user:password@host:port/database"
+    # Example: postgresql://username:password@host:port/database
     connection_string = "postgresql://user:password@localhost:5432/arboviroses"  # UPDATE THIS
     try:
         logger.info("Attempting to connect to database and fetch epi_data")
         engine = sqlalchemy.create_engine(connection_string)
         data = pd.read_sql('epi_data', engine)
-        # Ensure ' ..
-
-# data' column is in datetime format
+        # Ensure 'data' column is in datetime format
         if 'data' in data.columns:
             data['data'] = pd.to_datetime(data['data'])
         # Cache the data locally as a fallback
@@ -40,6 +37,10 @@ def get_realtime_data():
     except sqlalchemy.exc.DatabaseError as e:
         st.error(f"Database error: {str(e)}")
         logger.error(f"Database error: {str(e)}")
+        return load_fallback_data()
+    except ImportError as e:
+        st.error(f"Missing database driver: {str(e)}. Please install psycopg2 (e.g., pip install psycopg2-binary).")
+        logger.error(f"Import error: {str(e)}")
         return load_fallback_data()
     except Exception as e:
         st.error(f"An unexpected error occurred while fetching data: {str(e)}")
@@ -72,10 +73,10 @@ def load_sample_data():
     """
     try:
         sample_data = [
-            {"estado": "MG", "data": "2025-07-01", "casos_confirmados": 100},
-            {"estado": "SP", "data": "2025-07-02", "casos_confirmados": 150},
-            {"estado": "RJ", "data": "2025-07-03", "casos_confirmados": 80},
-            {"estado": "MG", "data": "2025-07-04", "casos_confirmados": 120},
+            {"estado": "MG", "municipio": "Belo Horizonte", "data": "2025-07-01", "casos_confirmados": 100},
+            {"estado": "SP", "municipio": "São Paulo", "data": "2025-07-02", "casos_confirmados": 150},
+            {"estado": "RJ", "municipio": "Rio de Janeiro", "data": "2025-07-03", "casos_confirmados": 80},
+            {"estado": "MG", "municipio": "Uberlândia", "data": "2025-07-04", "casos_confirmados": 120},
         ]
         df = pd.DataFrame(sample_data)
         df['data'] = pd.to_datetime(df['data'])
