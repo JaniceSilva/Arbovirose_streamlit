@@ -12,11 +12,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @st.cache_data(ttl=3600)
-def load_data(_url="https://opendatasus.saude.gov.br/api/arboviroses"):  # REPLACE with actual API URL
+def load_data(_url=None):  # REPLACE with actual API URL, e.g., from OPENDATASUS or SINAN
     """
     Fetch data from the API with robust error handling and caching.
-    Returns a pandas DataFrame or None if the request fails.
+    Returns a pandas DataFrame or sample data if the API URL is not provided or fails.
     """
+    if _url is None:
+        st.warning("No API URL provided. Using sample data for testing.")
+        logger.info("No API URL provided. Loading sample data.")
+        return load_sample_data()
+    
     try:
         logger.info(f"Attempting to fetch data from API: {_url}")
         response = requests.get(_url, timeout=10)
@@ -101,8 +106,8 @@ def main():
         # Period slider (days)
         periodo = st.slider("Período (dias)", min_value=7, max_value=365, value=30)
     
-    # Load data
-    data = load_data()
+    # Load data (set _url to the actual API endpoint, e.g., from OPENDATASUS or SINAN)
+    data = load_data(_url=None)  # REPLACE None with actual API URL
     
     if data is not None and not data.empty:
         # Filter data by state
