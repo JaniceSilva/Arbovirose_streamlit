@@ -1,54 +1,53 @@
 import streamlit as st
 import pandas as pd
 import requests
-from datetime import datetime, timedelta
-import plotly.graph_objects as go
 from components.charts import create_time_series_chart
 from components.maps import create_incidence_map
 
-st.set_page_config(
-    page_title="InfoDengue - Monitoramento Inteligente",
-    page_icon="🦟",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 @st.cache_data(ttl=3600)
 def load_data():
-    response = requests.get("http://localhost:8000/data")
-    return pd.DataFrame(response.json())
+    try:
+        # Replace with your Render FastAPI URL
+        response = requests.get("https://your-fastapi-app.onrender.com/data", timeout=10)
+        response.raise_for_status()  # Raise exception for bad status codes
+        data = pd.DataFrame(response.json())
+        # Ensure 'data' column is datetime
+        data['data'] = pd.to_datetime(data['data'])
+        return data
+    except requests.exceptions.RequestException as e:
+        st.error(f"Erro ao carregar dados da API: {str(e)}")
+        return pd.DataFrame()
 
 def main():
-    st.title("🦟 InfoDengue - Sistema de Monitoramento Inteligente")
+    st.title("Dashboard de Arboviroses")
     
-    with st.sidebar:
-        st.header("Filtros")
-        estado = st.selectbox("Estado", ["Todos", "MG", "SP", "RJ"])
-        periodo = st.slider("Período (dias)", 7, 365, 30)
+    # State selection
+    estados = ["Todos", "MG", "SP", "RJ"]
+    estado = st.selectbox("Estado", estados)
     
+    # Period slider (days)
+    periodo = st.slider("Período (dias)", min_value=7, max_value=365, value=30)
+    
+    # Load data
     data = load_data()
     
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Casos Hoje", "1,234", "12%")
-    with col2:
-        st.metric("Previsão 7 dias", "8,456", "23%")
-    with col3:
-        st.metric("Municípios em Alerta", "45", "-3")
-    with col4:
-        st.metric("Eficácia do Modelo", "89.2%", "1.2%")
-    
-    col1, col2 = st.columns(2)  # Fixed the typo here
-    
-    with col1:
-        st.subheader("Tendência Temporal")
+    if not data.empty:
+        # Filter data by state
+        if estado != "Todos":
+            data = data[data['estado'] == estado]
+        
+        # Filter data by period
+        end_date = data['data'].max()
+        start_date = end_date - pd.Timedelta(days=periodo)
+        data = data[(data['data'] >= start_date) & (data['data'] <= end_date)]
+        
+        # Create and display charts
         chart = create_time_series_chart(data)
-        st.plotly_chart(chart, use_container_width=True)
-    
-    with col2:
-        st.subheader("Mapa de Incidência")
         map_fig = create_incidence_map(data)
+        st.plotly_chart(chart, use_container_width=True)
         st.plotly_chart(map_fig, use_container_width=True)
+    else:
+        st.warning("Nenhum dado disponível para exibição.")
 
 if __name__ == "__main__":
     main()
