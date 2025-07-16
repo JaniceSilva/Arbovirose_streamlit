@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
-import requests
+import sqlalchemy
 import logging
-import json
 from datetime import datetime
 from components.charts import create_time_series_chart
 from components.maps import create_incidence_map
@@ -12,54 +11,49 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @st.cache_data(ttl=3600)
-def load_data(_url=None):  # REPLACE with actual API URL, e.g., from OPENDATASUS or SINAN
+def get_realtime_data():
     """
-    Fetch data from the API with robust error handling and caching.
-    Returns a pandas DataFrame or sample data if the API URL is not provided or fails.
+    Fetch data from the database with robust error handling and caching.
+    Returns a pandas DataFrame or sample data if the query fails.
     """
-    if _url is None:
-        st.warning("No API URL provided. Using sample data for testing.")
-        logger.info("No API URL provided. Loading sample data.")
-        return load_sample_data()
-    
+    # Replace with your actual database connection string
+    # Example for PostgreSQL: "postgresql://user:password@host:port/database"
+    # Example for MySQL: "mysql+pymysql://user:password@host:port/database"
+    connection_string = "postgresql://user:password@localhost:5432/arboviroses"  # UPDATE THIS
     try:
-        logger.info(f"Attempting to fetch data from API: {_url}")
-        response = requests.get(_url, timeout=10)
-        response.raise_for_status()  # Raises an HTTPError for bad responses
-        data = response.json()
-        # Convert JSON to DataFrame (adjust based on actual JSON structure)
-        df = pd.DataFrame(data)
-        # Ensure 'data' column is in datetime format
-        if 'data' in df.columns:
-            df['data'] = pd.to_datetime(df['data'])
+        logger.info("Attempting to connect to database and fetch epi_data")
+        engine = sqlalchemy.create_engine(connection_string)
+        data = pd.read_sql('epi_data', engine)
+        # Ensure ' ..
+
+data' column is in datetime format
+        if 'data' in data.columns:
+            data['data'] = pd.to_datetime(data['data'])
         # Cache the data locally as a fallback
-        df.to_json("backup_data.json", orient="records", date_format="iso")
-        return df
-    except requests.exceptions.ConnectionError as e:
-        st.error(f"Failed to connect to the API: {str(e)}. Please check your network or API availability.")
-        logger.error(f"Connection error: {str(e)}")
+        data.to_json("backup_data.json", orient="records", date_format="iso")
+        logger.info("Successfully fetched data from database")
+        return data
+    except sqlalchemy.exc.OperationalError as e:
+        st.error(f"Failed to connect to the database: {str(e)}. Please check your database configuration or network.")
+        logger.error(f"Database connection error: {str(e)}")
         return load_fallback_data()
-    except requests.exceptions.HTTPError as e:
-        st.error(f"API returned an error: {str(e)}")
-        logger.error(f"HTTP error: {str(e)}")
+    except sqlalchemy.exc.DatabaseError as e:
+        st.error(f"Database error: {str(e)}")
+        logger.error(f"Database error: {str(e)}")
         return load_fallback_data()
-    except requests.exceptions.Timeout as e:
-        st.error(f"Request timed out: {str(e)}. Please try again later.")
-        logger.error(f"Timeout error: {str(e)}")
-        return load_fallback_data()
-    except (requests.exceptions.RequestException, ValueError) as e:
-        st.error(f"An unexpected error occurred while fetching or processing data: {str(e)}")
+    except Exception as e:
+        st.error(f"An unexpected error occurred while fetching data: {str(e)}")
         logger.error(f"Unexpected error: {str(e)}")
         return load_fallback_data()
 
 def load_fallback_data():
     """
-    Load cached data or sample data as a fallback if the API request fails.
+    Load cached data or sample data as a fallback if the database query fails.
     Returns a pandas DataFrame or None if no data is available.
     """
     try:
         df = pd.read_json("backup_data.json", convert_dates=['data'])
-        st.warning("Using cached data due to API failure.")
+        st.warning("Using cached data due to database failure.")
         logger.info("Loaded cached data from backup_data.json")
         return df
     except FileNotFoundError:
@@ -73,7 +67,7 @@ def load_fallback_data():
 
 def load_sample_data():
     """
-    Load sample data for testing if no API or cached data is available.
+    Load sample data for testing if no database or cached data is available.
     Returns a pandas DataFrame.
     """
     try:
@@ -94,7 +88,7 @@ def load_sample_data():
         return None
 
 def main():
-    st.title("Dashboard de Arboviroses")
+    st.title("📊 Dashboard de Monitoramento")
     
     # Sidebar for input controls
     with st.sidebar:
@@ -106,8 +100,8 @@ def main():
         # Period slider (days)
         periodo = st.slider("Período (dias)", min_value=7, max_value=365, value=30)
     
-    # Load data (set _url to the actual API endpoint, e.g., from OPENDATASUS or SINAN)
-    data = load_data(_url=None)  # REPLACE None with actual API URL
+    # Load data
+    data = get_realtime_data()
     
     if data is not None and not data.empty:
         # Filter data by state
