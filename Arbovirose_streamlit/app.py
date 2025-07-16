@@ -12,13 +12,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @st.cache_data(ttl=3600)
-def load_data(_url="YOUR_API_URL"):
+def load_data(_url="https://api.saude.gov.br/arboviroses"):  # REPLACE with your actual API URL
     """
     Fetch data from the API with robust error handling and caching.
     Returns a pandas DataFrame or None if the request fails.
     """
     try:
-        logger.info("Attempting to fetch data from API")
+        logger.info(f"Attempting to fetch data from API: {_url}")
         response = requests.get(_url, timeout=10)
         response.raise_for_status()  # Raises an HTTPError for bad responses
         data = response.json()
@@ -49,8 +49,8 @@ def load_data(_url="YOUR_API_URL"):
 
 def load_fallback_data():
     """
-    Load cached data as a fallback if the API request fails.
-    Returns a pandas DataFrame or None if no cached data is available.
+    Load cached data or sample data as a fallback if the API request fails.
+    Returns a pandas DataFrame or None if no data is available.
     """
     try:
         df = pd.read_json("backup_data.json", convert_dates=['data'])
@@ -58,12 +58,34 @@ def load_fallback_data():
         logger.info("Loaded cached data from backup_data.json")
         return df
     except FileNotFoundError:
-        st.error("No cached data available.")
-        logger.warning("No cached data found.")
-        return None
+        st.warning("No cached data available. Attempting to load sample data.")
+        logger.warning("No cached data found. Loading sample data.")
+        return load_sample_data()
     except ValueError as e:
         st.error(f"Error reading cached data: {str(e)}")
         logger.error(f"Cached data error: {str(e)}")
+        return load_sample_data()
+
+def load_sample_data():
+    """
+    Load sample data for testing if no API or cached data is available.
+    Returns a pandas DataFrame.
+    """
+    try:
+        sample_data = [
+            {"estado": "MG", "data": "2025-07-01", "casos": 100},
+            {"estado": "SP", "data": "2025-07-02", "casos": 150},
+            {"estado": "RJ", "data": "2025-07-03", "casos": 80},
+            {"estado": "MG", "data": "2025-07-04", "casos": 120},
+        ]
+        df = pd.DataFrame(sample_data)
+        df['data'] = pd.to_datetime(df['data'])
+        st.info("Using sample data for testing purposes.")
+        logger.info("Loaded sample data.")
+        return df
+    except Exception as e:
+        st.error(f"Error loading sample data: {str(e)}")
+        logger.error(f"Sample data error: {str(e)}")
         return None
 
 def main():
