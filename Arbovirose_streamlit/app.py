@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import sqlalchemy
+import requests
 import logging
 from datetime import datetime
 from components.charts import create_time_series_chart
@@ -13,43 +13,37 @@ logger = logging.getLogger(__name__)
 @st.cache_data(ttl=3600)
 def get_realtime_data():
     """
-    Fetch data from Render-hosted PostgreSQL database.
+    Fetch data from Render-hosted API serving infodengue.db.
     Returns a pandas DataFrame or sample data if the query fails.
     """
-    # Use Render's PostgreSQL connection string from .streamlit/secrets.toml
-    # Format: postgresql://username:password@host:port/database
-    # Get from Render Dashboard: Databases > Your Database > Connection Info
-    connection_string = st.secrets.get("database", {}).get("connection_string", "postgresql://user:password@host:port/arboviroses")  # REPLACE with Render credentials
+    api_url = st.secrets.get("api", {}).get("url", "https://arbovirose-streamlit.onrender.com/data_endpoint")  # Replace with actual endpoint
     try:
-        logger.info("Connecting to Render PostgreSQL database")
-        engine = sqlalchemy.create_engine(connection_string)
-        data = pd.read_sql('epi_data', engine)
+        logger.info(f"Fetching data from API: {api_url}")
+        response = requests.get(api_url)
+        response.raise_for_status()  # Raise exception for 4xx/5xx errors
+        data = pd.DataFrame(response.json())
         if 'data' in data.columns:
             data['data'] = pd.to_datetime(data['data'])
         data.to_json("backup_data.json", orient="records", date_format="iso")
-        logger.info("Successfully fetched data from database")
+        logger.info(f"Fetched {len(data)} rows from API")
         return data
-    except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.DatabaseError) as e:
-        st.error(f"Database error: {str(e)}. Check Render connection string or database availability.")
-        logger.error(f"Database error: {str(e)}")
-        return load_fallback_data()
-    except ImportError as e:
-        st.error(f"Missing psycopg2 driver: {str(e)}. Add psycopg2-binary to requirements.txt.")
-        logger.error(f"Import error: {str(e)}")
+    except requests.exceptions.RequestException as e:
+        st.error(f"API error: {str(e)}. Check Render API availability or URL.")
+        logger.error(f"API error: {str(e)}")
         return load_fallback_data()
     except Exception as e:
         st.error(f"Unexpected error fetching data: {str(e)}")
-        logger.error(f"Unexpected error: {str(e)}")
+        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
         return load_fallback_data()
 
 def load_fallback_data():
     """
-    Load cached data or sample data if database query fails.
+    Load cached data or sample data if API query fails.
     Returns a pandas DataFrame or None.
     """
     try:
         df = pd.read_json("backup_data.json", convert_dates=['data'])
-        st.warning("Using cached data due to database failure.")
+        st.warning("Using cached data due to API failure.")
         logger.info("Loaded cached data")
         return df
     except (FileNotFoundError, ValueError) as e:
@@ -88,6 +82,13 @@ def main():
         estados = ["Todos", "MG", "SP", "RJ"]
         estado = st.selectbox("Estado", estados)
         periodo = st.slider("Período (dias)", min_value=7, max_value=365, value=30)
+        if st.button("Test API Connection"):
+            try:
+                response = requests.get(st.secrets["api"]["url"])
+                response.raise_for_status()
+                st.success("API connection successful!")
+            except Exception as e:
+                st.error(f"API connection failed: {str(e)}")
     
     # Load data
     data = get_realtime_data()
