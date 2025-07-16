@@ -78,10 +78,10 @@ def load_sample_data():
     """
     try:
         sample_data = [
-            {"estado": "MG", "data": "2025-07-01", "casos": 100},
-            {"estado": "SP", "data": "2025-07-02", "casos": 150},
-            {"estado": "RJ", "data": "2025-07-03", "casos": 80},
-            {"estado": "MG", "data": "2025-07-04", "casos": 120},
+            {"estado": "MG", "data": "2025-07-01", "casos_confirmados": 100},
+            {"estado": "SP", "data": "2025-07-02", "casos_confirmados": 150},
+            {"estado": "RJ", "data": "2025-07-03", "casos_confirmados": 80},
+            {"estado": "MG", "data": "2025-07-04", "casos_confirmados": 120},
         ]
         df = pd.DataFrame(sample_data)
         df['data'] = pd.to_datetime(df['data'])
