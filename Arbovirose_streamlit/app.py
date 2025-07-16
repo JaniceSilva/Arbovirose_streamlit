@@ -19,6 +19,7 @@ def get_realtime_data():
     # Replace with your actual database connection string
     # Example: postgresql://username:password@host:port/database
     # For Streamlit Cloud, store in .streamlit/secrets.toml
+    # Ensure psycopg2-binary is in requirements.txt
     connection_string = st.secrets.get("database", {}).get("connection_string", "postgresql://user:password@localhost:5432/arboviroses")  # UPDATE THIS
     try:
         logger.info("Attempting to connect to database and fetch epi_data")
