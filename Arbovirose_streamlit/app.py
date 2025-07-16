@@ -18,7 +18,8 @@ def get_realtime_data():
     """
     # Replace with your actual database connection string
     # Example: postgresql://username:password@host:port/database
-    connection_string = "postgresql://user:password@localhost:5432/arboviroses"  # UPDATE THIS
+    # For Streamlit Cloud, store in .streamlit/secrets.toml
+    connection_string = st.secrets.get("database", {}).get("connection_string", "postgresql://user:password@localhost:5432/arboviroses")  # UPDATE THIS
     try:
         logger.info("Attempting to connect to database and fetch epi_data")
         engine = sqlalchemy.create_engine(connection_string)
