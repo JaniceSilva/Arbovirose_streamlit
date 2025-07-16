@@ -4,9 +4,11 @@ import requests
 from components.charts import create_time_series_chart
 from components.maps import create_incidence_map
 
-@st.cache_data(ttl=3600)
 import requests
 import streamlit as st
+
+@st.cache_data(ttl=3600)
+
 
 def load_data():
     try:
