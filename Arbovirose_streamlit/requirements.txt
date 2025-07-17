@@ -11,6 +11,5 @@ fastapi>=0.116.1
 uvicorn>=0.35.0
 python-dotenv>=1.1.1
 sqlalchemy==2.0.41
-flask
-gunicorn
-
+gunicorn==20.1.0
+flask==2.3.2
