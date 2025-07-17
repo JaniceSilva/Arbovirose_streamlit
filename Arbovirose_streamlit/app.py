@@ -73,7 +73,7 @@ logger = logging.getLogger(__name__)
 @st.cache_data(ttl=3600)
 def get_realtime_data():
     """
-    Fetch data from Render-hosted API serving infodengue.db.
+    Fetch data from Render-hosted API serving arbovirose.db.
     Returns a pandas DataFrame or sample data if the query fails.
     """
     api_url = st.secrets.get("api", {}).get("url", "https://arbovirose-streamlit.onrender.com/data_endpoint")  # Replace with actual endpoint
