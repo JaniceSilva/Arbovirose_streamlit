@@ -9,6 +9,16 @@ from components.maps import create_incidence_map
 import streamlit as st
 from flask import Flask, Response
 
+# app.py (Arbovirose_streamlit/app.py)
+from flask import Flask, Response
+
+# Crie o app Flask para health checks
+health_app = Flask(__name__)
+
+@health_app.route('/healthz')
+def health_check():
+    return Response("OK", status=200)
+
 # Crie um servidor Flask oculto
 flask_app = Flask(__name__)
 
