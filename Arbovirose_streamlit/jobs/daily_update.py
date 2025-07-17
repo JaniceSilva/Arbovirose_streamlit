@@ -1,19 +1,19 @@
 import sqlite3
 import pandas as pd
+import requests
 import logging
 from datetime import datetime, timedelta
-from pysus.online_data import arbovirose
 import schedule
 import time
 import os
 
-# Configure logging
+# Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def create_database():
     """
-    Create arbovirose.db and epi_data table if they don't exist.
+    Cria o banco arbovirose.db e a tabela epi_data se não existirem.
     """
     try:
         conn = sqlite3.connect("arbovirose.db")
@@ -28,16 +28,16 @@ def create_database():
             )
         """)
         conn.commit()
-        logger.info("Database and epi_data table created or verified")
+        logger.info("Banco de dados e tabela epi_data criados ou verificados")
         return conn
     except sqlite3.Error as e:
-        logger.error(f"Error creating database: {str(e)}")
+        logger.error(f"Erro ao criar banco de dados: {str(e)}")
         return None
 
-def fetch_arbovirose_data(disease="dengue", start_date=None, end_date=None):
+def fetch_mosqlimate_data(disease="dengue", start_date=None, end_date=None):
     """
-    Fetch data from arbovirose using PySUS.
-    Returns a pandas DataFrame.
+    Busca dados da API Mosqlimate.
+    Retorna um pandas DataFrame.
     """
     if start_date is None:
         start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
@@ -45,44 +45,40 @@ def fetch_arbovirose_data(disease="dengue", start_date=None, end_date=None):
         end_date = datetime.now().strftime("%Y-%m-%d")
     
     try:
-        logger.info(f"Fetching {disease} data from {start_date} to {end_date}")
-        states = ["MG", "SP", "RJ"]
-        dataframes = []
-        for state in states:
-            df = arbovirose.download(
-                disease=disease,
-                start_date=start_date,
-                end_date=end_date,
-                uf=state
-            )
-            dataframes.append(df)
-        data = pd.concat(dataframes, ignore_index=True)
-        
+        url = f"https://api.mosqlimate.org/data/{disease}?start_date={start_date}&end_date={end_date}"
+        logger.info(f"Buscando dados do Mosqlimate: {url}")
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = pd.DataFrame(response.json().get("items", []))
+        if data.empty:
+            logger.warning("API Mosqlimate retornou dados vazios")
+            return None
         data = data.rename(columns={
-            "SE": "data",
-            "casos": "casos_confirmados",
+            "uf": "estado",
             "municipio_nome": "municipio",
-            "uf": "estado"
+            "data": "data",
+            "casos": "casos_confirmados"
         })
         if "data" in data.columns:
             data["data"] = pd.to_datetime(data["data"]).dt.strftime("%Y-%m-%d")
-        logger.info(f"Fetched {len(data)} rows from arbovirose")
+        logger.info(f"Obtidos {len(data)} registros do Mosqlimate")
         return data[["estado", "municipio", "data", "casos_confirmados"]]
     except Exception as e:
-        logger.error(f"Error fetching arbovirose data: {str(e)}")
+        logger.error(f"Erro ao buscar dados do Mosqlimate: {str(e)}")
         return None
 
 def populate_database():
     """
-    Populate arbovirose.db with data from arbovirose.
+    Popula arbovirose.db com dados do Mosqlimate.
     """
     conn = create_database()
     if not conn:
+        logger.error("Falha ao criar ou conectar ao banco de dados")
         return
     
-    data = fetch_arbovirose_data()
+    data = fetch_mosqlimate_data()
     if data is None or data.empty:
-        logger.warning("No data to insert into database")
+        logger.warning("Nenhum dado para inserir no banco")
         conn.close()
         return
     
@@ -98,33 +94,49 @@ def populate_database():
                 row["estado"],
                 row["municipio"],
                 row["data"],
-                row["casos_confirmados"]
+                int(row.get("casos_confirmados", 0))
             ))
         conn.commit()
-        logger.info(f"Inserted {len(data)} rows into epi_data table")
+        logger.info(f"Inseridos {len(data)} registros na tabela epi_data")
     except sqlite3.Error as e:
-        logger.error(f"Error inserting data: {str(e)}")
+        logger.error(f"Erro ao inserir dados: {str(e)}")
     finally:
         conn.close()
 
+def keep_alive():
+    """
+    Ping na API para evitar parada no Render (free-tier).
+    """
+    try:
+        response = requests.get("https://arbovirose-streamlit.onrender.com/ping")
+        response.raise_for_status()
+        logger.info("Ping keep-alive bem-sucedido")
+    except Exception as e:
+        logger.error(f"Falha no ping keep-alive: {str(e)}")
+
 def job():
     """
-    Daily job to update the database.
+    Trabalho diário para atualizar o banco e pingar a API.
     """
-    logger.info("Starting daily database update")
+    logger.info("Iniciando atualização diária do banco")
     populate_database()
-    logger.info("Daily update completed")
+    keep_alive()
+    logger.info("Atualização diária concluída")
 
 def main():
     """
-    Schedule the daily update job.
+    Agenda o trabalho diário de atualização.
     """
     schedule.every().day.at("02:00").do(job)
+    schedule.every(5).minutes.do(keep_alive)
     
-    logger.info("Starting scheduler")
+    logger.info("Iniciando agendador")
     while True:
         schedule.run_pending()
         time.sleep(60)
 
 if __name__ == "__main__":
-    main()
+    if os.getenv("MANUAL_RUN", "false").lower() == "true":
+        job()
+    else:
+        main()
