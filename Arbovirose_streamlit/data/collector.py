@@ -107,3 +107,7 @@ def populate_database():
 
 if __name__ == "__main__":
     populate_database()
+Traceback (most recent call last):
+  File "<string>", line 5, in <module>
+ModuleNotFoundError: No module named 'pysus'
+Integration with Project
