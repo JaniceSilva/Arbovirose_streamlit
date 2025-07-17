@@ -1,57 +1,45 @@
-"""
-Módulo com funções auxiliares reutilizáveis para a aplicação
-"""
-
-import pandas as pd
+# Arbovirose_streamlit/utils/helpers.py
+import requests
 import streamlit as st
-from datetime import datetime
+import pandas as pd
+from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
 
-def format_date(date_str: str) -> str:
-    """
-    Formata datas para o padrão brasileiro (DD/MM/YYYY)
-    
-    Args:
-        date_str: Data em formato string
-    
-    Returns:
-        Data formatada ou string original em caso de erro
-    """
+def get_api_data():
+    """Obtém dados da API com tratamento de erros"""
     try:
-        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-        return date_obj.strftime("%d/%m/%Y")
-    except (ValueError, TypeError):
-        return date_str
+        api_url = st.secrets["api"]["url"]
+        api_key = st.secrets["api"]["key"]
+        
+        headers = {"Authorization": f"Bearer {api_key}"}
+        response = requests.get(api_url, headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        return response.json()
+    
+    except KeyError:
+        st.error("Chave API não configurada")
+    except requests.exceptions.RequestException as e:
+        st.error(f"Falha na API: {str(e)}")
+    except ValueError:
+        st.error("Resposta inválida da API")
+    
+    return None
 
-def display_dataframe(df: pd.DataFrame, max_rows: int = 10) -> None:
-    """
-    Exibe um DataFrame no Streamlit com formatação melhorada
+def get_db_data():
+    """Obtém dados do banco de dados com fallback"""
+    try:
+        engine = create_engine(st.secrets["database"]["url"])
+        return pd.read_sql("SELECT * FROM epi_data", engine)
     
-    Args:
-        df: DataFrame a ser exibido
-        max_rows: Número máximo de linhas a mostrar
-    """
-    if df.empty:
-        st.warning("Nenhum dado disponível para exibição.")
-        return
-    
-    # Formata datas automaticamente
-    date_cols = df.select_dtypes(include=['datetime']).columns
-    for col in date_cols:
-        df[col] = df[col].apply(format_date)
-    
-    st.dataframe(df.head(max_rows))
+    except SQLAlchemyError as e:
+        st.error(f"Erro no banco: {str(e)}")
+        return None
 
-def calculate_growth(current: float, previous: float) -> float:
-    """
-    Calcula o crescimento percentual entre dois valores
-    
-    Args:
-        current: Valor atual
-        previous: Valor anterior
-    
-    Returns:
-        Taxa de crescimento percentual (arredondada)
-    """
-    if previous == 0:
-        return 0.0
-    return round(((current - previous) / previous) * 100, 2)
+def load_backup_data():
+    """Carrega dados de backup locais"""
+    try:
+        return pd.read_csv("data/backup.csv")
+    except FileNotFoundError:
+        st.error("Dados de backup não encontrados")
+        return pd.DataFrame()
