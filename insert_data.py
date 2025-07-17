@@ -81,7 +81,6 @@ def insert_data():
     
     try:
         cursor = conn.cursor()
-        # Limpa dados existentes (opcional, comente para adicionar)
         cursor.execute("DELETE FROM epi_data")
         
         for _, row in data.iterrows():
