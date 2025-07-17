@@ -14,8 +14,17 @@ st.title("📊 Dashboard de Monitoramento")
 @st.cache_data(ttl=60)
 def get_realtime_data():
     engine = create_engine(DATABASE_URL)
-    data = pd.read_sql('epi_data', engine)
-    return data.assign(previsao=lambda x: x['casos_confirmados'] * (1 + np.random.normal(0, 0.1)))
+    @st.cache_data(ttl=60)
+def get_realtime_data():
+    try:
+        engine = create_engine(DATABASE_URL)
+        data = pd.read_sql('SELECT * FROM epi_data', engine)
+        return data.assign(previsao=lambda x: x['casos_confirmados'] * (1 + ...))
+    
+    except SQLAlchemyError as e:
+        st.error(f"Erro no banco de dados: {str(e)}")
+        # Carregar dados de backup ou amostra
+        return load_backup_data()
 
 if st.button("🔄 Atualizar Dados"):
     st.cache_data.clear()
