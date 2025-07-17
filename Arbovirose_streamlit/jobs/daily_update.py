@@ -2,7 +2,7 @@ import sqlite3
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
-from pysus.online_data import Infodengue
+from pysus.online_data import arbovirose
 import schedule
 import time
 import os
@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 
 def create_database():
     """
-    Create infodengue.db and epi_data table if they don't exist.
+    Create arbovirose.db and epi_data table if they don't exist.
     """
     try:
-        conn = sqlite3.connect("infodengue.db")
+        conn = sqlite3.connect("arbovirose.db")
         cursor = conn.cursor()
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS epi_data (
@@ -34,9 +34,9 @@ def create_database():
         logger.error(f"Error creating database: {str(e)}")
         return None
 
-def fetch_infodengue_data(disease="dengue", start_date=None, end_date=None):
+def fetch_arbovirose_data(disease="dengue", start_date=None, end_date=None):
     """
-    Fetch data from InfoDengue using PySUS.
+    Fetch data from arbovirose using PySUS.
     Returns a pandas DataFrame.
     """
     if start_date is None:
@@ -49,7 +49,7 @@ def fetch_infodengue_data(disease="dengue", start_date=None, end_date=None):
         states = ["MG", "SP", "RJ"]
         dataframes = []
         for state in states:
-            df = Infodengue.download(
+            df = arbovirose.download(
                 disease=disease,
                 start_date=start_date,
                 end_date=end_date,
@@ -66,21 +66,21 @@ def fetch_infodengue_data(disease="dengue", start_date=None, end_date=None):
         })
         if "data" in data.columns:
             data["data"] = pd.to_datetime(data["data"]).dt.strftime("%Y-%m-%d")
-        logger.info(f"Fetched {len(data)} rows from InfoDengue")
+        logger.info(f"Fetched {len(data)} rows from arbovirose")
         return data[["estado", "municipio", "data", "casos_confirmados"]]
     except Exception as e:
-        logger.error(f"Error fetching InfoDengue data: {str(e)}")
+        logger.error(f"Error fetching arbovirose data: {str(e)}")
         return None
 
 def populate_database():
     """
-    Populate infodengue.db with data from InfoDengue.
+    Populate arbovirose.db with data from arbovirose.
     """
     conn = create_database()
     if not conn:
         return
     
-    data = fetch_infodengue_data()
+    data = fetch_arbovirose_data()
     if data is None or data.empty:
         logger.warning("No data to insert into database")
         conn.close()
