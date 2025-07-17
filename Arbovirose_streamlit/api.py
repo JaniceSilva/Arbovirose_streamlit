@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 
 def create_database():
     """
-    Cria o banco infodengue.db e a tabela epi_data se não existirem.
+    Cria o banco arbovirose.db e a tabela epi_data se não existirem.
     """
     try:
-        conn = sqlite3.connect("infodengue.db")
+        conn = sqlite3.connect("arbovirose.db")
         cursor = conn.cursor()
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS epi_data (
@@ -69,7 +69,7 @@ def fetch_mosqlimate_data(disease="dengue", start_date=None, end_date=None):
 
 def populate_database():
     """
-    Popula infodengue.db com dados do Mosqlimate.
+    Popula arbovirose.db com dados do Mosqlimate.
     """
     conn = create_database()
     if not conn:
