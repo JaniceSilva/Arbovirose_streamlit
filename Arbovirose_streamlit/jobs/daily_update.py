@@ -46,7 +46,7 @@ def fetch_infodengue_data(disease="dengue", start_date=None, end_date=None):
     
     try:
         logger.info(f"Fetching {disease} data from {start_date} to {end_date}")
-        states = ["MG", "SP", "RJ"]  # Adjust as needed
+        states = ["MG", "SP", "RJ"]
         dataframes = []
         for state in states:
             df = Infodengue.download(
@@ -58,7 +58,6 @@ def fetch_infodengue_data(disease="dengue", start_date=None, end_date=None):
             dataframes.append(df)
         data = pd.concat(dataframes, ignore_index=True)
         
-        # Standardize column names
         data = data.rename(columns={
             "SE": "data",
             "casos": "casos_confirmados",
@@ -89,10 +88,8 @@ def populate_database():
     
     try:
         cursor = conn.cursor()
-        # Clear existing data (optional, comment out to append)
         cursor.execute("DELETE FROM epi_data")
         
-        # Insert data
         for _, row in data.iterrows():
             cursor.execute("""
                 INSERT INTO epi_data (estado, municipio, data, casos_confirmados)
@@ -122,7 +119,6 @@ def main():
     """
     Schedule the daily update job.
     """
-    # Schedule job to run daily at 2:00 AM
     schedule.every().day.at("02:00").do(job)
     
     logger.info("Starting scheduler")
