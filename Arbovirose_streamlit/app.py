@@ -9,6 +9,19 @@ from components.maps import create_incidence_map
 import streamlit as st
 from flask import Flask, Response
 
+# Adicione isso no início do arquivo
+import os
+from flask import Flask, Response
+
+# Configuração do health check
+health_app = Flask(__name__)
+
+@health_app.route('/healthz')
+def health_check():
+    return Response("OK", status=200)
+
+# ... resto do seu código Streamlit ...
+
 # app.py (Arbovirose_streamlit/app.py)
 from flask import Flask, Response
 
