@@ -76,6 +76,8 @@ def load_sample_data():
 st.title("📊 Dashboard de Monitoramento")
 
 # Sidebar for filters
+import os
+api_url = st.secrets.get("api", {}).get("url", os.getenv("STREAMLIT_SECRETS_API_URL", "https://arbovirose-streamlit.onrender.com/data_endpoint"))
 with st.sidebar:
     st.header("Filtros")
     estados = ["Todos", "MG", "SP", "RJ"]
