@@ -13,3 +13,4 @@ python-dotenv>=1.1.1
 sqlalchemy==2.0.41
 gunicorn==20.1.0
 flask==2.3.2
+pysus==0.13.0
