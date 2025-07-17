@@ -1,55 +1,109 @@
+import sqlite3
 import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-from sqlalchemy import create_engine
-import streamlit as st
-from config.settings import DATABASE_URL
+from datetime import datetime
+import logging
+from pysus.online_data import Infodengue
+import os
 
-class DataCollector:
-    def __init__(self):
-        self.db_engine = create_engine(DATABASE_URL)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def create_database():
+    """
+    Create infodengue.db and epi_data table if they don't exist.
+    """
+    try:
+        conn = sqlite3.connect("infodengue.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS epi_data (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                estado TEXT,
+                municipio TEXT,
+                data TEXT,
+                casos_confirmados INTEGER
+            )
+        """)
+        conn.commit()
+        logger.info("Database and epi_data table created or verified")
+        return conn
+    except sqlite3.Error as e:
+        logger.error(f"Error creating database: {str(e)}")
+        return None
+
+def fetch_infodengue_data(disease="dengue", start_date="2023-01-01", end_date="2024-12-31"):
+    """
+    Fetch data from InfoDengue using PySUS.
+    Returns a pandas DataFrame.
+    """
+    try:
+        logger.info(f"Fetching {disease} data from {start_date} to {end_date}")
+        # Example: Fetch data for specific states (MG, SP, RJ)
+        states = ["MG", "SP", "RJ"]
+        dataframes = []
+        for state in states:
+            df = Infodengue.download(
+                disease=disease,
+                start_date=start_date,
+                end_date=end_date,
+                uf=state
+            )
+            dataframes.append(df)
+        data = pd.concat(dataframes, ignore_index=True)
+        
+        # Standardize column names to match epi_data table
+        data = data.rename(columns={
+            "SE": "data",  # Epidemiological week or date
+            "casos": "casos_confirmados",
+            "municipio_nome": "municipio",
+            "uf": "estado"
+        })
+        # Convert date to ISO format
+        if "data" in data.columns:
+            data["data"] = pd.to_datetime(data["data"]).dt.strftime("%Y-%m-%d")
+        logger.info(f"Fetched {len(data)} rows from InfoDengue")
+        return data[["estado", "municipio", "data", "casos_confirmados"]]
+    except Exception as e:
+        logger.error(f"Error fetching InfoDengue data: {str(e)}")
+        return None
+
+def populate_database():
+    """
+    Populate infodengue.db with data from InfoDengue.
+    """
+    conn = create_database()
+    if not conn:
+        return
     
-    @st.cache_data(ttl=3600)
-    def collect_epidemiological_data(self):
-        """Simulate and collect epidemiological data."""
-        dates = pd.date_range(start=datetime.now() - timedelta(days=30), end=datetime.now(), freq='D')
-        data = []
-        for date in dates:
-            casos = np.random.poisson(100) if date.month in [1, 2, 3, 4] else np.random.poisson(50)
-            data.append({
-                'data': date,
-                'casos_confirmados': casos,
-                'casos_suspeitos': casos * 1.5,
-                'municipio': 'Ipatinga',
-                'estado': 'MG'
-            })
-        df = pd.DataFrame(data)
-        df.to_sql('epi_data', self.db_engine, if_exists='replace', index=False)
-        return df
+    data = fetch_infodengue_data()
+    if data is None or data.empty:
+        logger.warning("No data to insert into database")
+        conn.close()
+        return
     
-    @st.cache_data(ttl=1800)
-    def collect_climate_data(self):
-        """Simulate and collect climate data."""
-        dates = pd.date_range(start=datetime.now() - timedelta(days=30), end=datetime.now(), freq='D')
-        data = []
-        for date in dates:
-            temp = 20 + 10 * np.sin(2 * np.pi * date.dayofyear / 365) + np.random.normal(0, 2)
-            umidade = 60 + 20 * np.sin(2 * np.pi * date.dayofyear / 365) + np.random.normal(0, 5)
-            chuva = max(0, np.random.exponential(2))
-            data.append({
-                'data': date,
-                'temperatura': temp,
-                'umidade': umidade,
-                'precipitacao': chuva,
-                'municipio': 'Ipatinga'
-            })
-        df = pd.DataFrame(data)
-        df.to_sql('climate_data', self.db_engine, if_exists='replace', index=False)
-        return df
-    
-    def get_latest_data(self):
-        """Combine epidemiological and climate data from SQLite."""
-        epi_data = pd.read_sql('epi_data', self.db_engine)
-        climate_data = pd.read_sql('climate_data', self.db_engine)
-        combined = epi_data.merge(climate_data, on=['data', 'municipio'], how='inner')
-        return combined
+    try:
+        cursor = conn.cursor()
+        # Clear existing data (optional, comment out to append)
+        cursor.execute("DELETE FROM epi_data")
+        
+        # Insert data
+        for _, row in data.iterrows():
+            cursor.execute("""
+                INSERT INTO epi_data (estado, municipio, data, casos_confirmados)
+                VALUES (?, ?, ?, ?)
+            """, (
+                row["estado"],
+                row["municipio"],
+                row["data"],
+                row["casos_confirmados"]
+            ))
+        conn.commit()
+        logger.info(f"Inserted {len(data)} rows into epi_data table")
+    except sqlite3.Error as e:
+        logger.error(f"Error inserting data: {str(e)}")
+    finally:
+        conn.close()
+
+if __name__ == "__main__":
+    populate_database()
