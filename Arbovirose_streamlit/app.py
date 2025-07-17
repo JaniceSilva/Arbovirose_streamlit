@@ -7,7 +7,7 @@ from components.charts import create_time_series_chart
 from components.maps import create_incidence_map
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 @st.cache_data(ttl=3600)
@@ -73,46 +73,42 @@ def load_sample_data():
         logger.error(f"Sample data error: {str(e)}")
         return None
 
-def main():
-    st.title("📊 Dashboard de Monitoramento")
-    
-    # Sidebar for filters
-    with st.sidebar:
-        st.header("Filtros")
-        estados = ["Todos", "MG", "SP", "RJ"]
-        estado = st.selectbox("Estado", estados)
-        periodo = st.slider("Período (dias)", min_value=7, max_value=365, value=30)
-        if st.button("Test API Connection"):
-            try:
-                response = requests.get(st.secrets["api"]["url"])
-                response.raise_for_status()
-                st.success(f"API connection successful! Status code: {response.status_code}")
-            except Exception as e:
-                st.error(f"API connection failed: {str(e)}")
-    
-    # Load data
-    data = get_realtime_data()
-    
-    if data is not None and not data.empty:
-        # Apply filters
-        if estado != "Todos":
-            data = data[data['estado'] == estado]
-        if 'data' in data.columns:
-            end_date = data['data'].max()
-            start_date = end_date - pd.Timedelta(days=periodo)
-            data = data[(data['data'] >= start_date) & (data['data'] <= end_date)]
-        
-        # Display visualizations
-        try:
-            chart = create_time_series_chart(data)
-            map_fig = create_incidence_map(data)
-            st.plotly_chart(chart, use_container_width=True)
-            st.plotly_chart(map_fig, use_container_width=True)
-        except Exception as e:
-            st.error(f"Error generating visualizations: {str(e)}")
-            logger.error(f"Visualization error: {str(e)}")
-    else:
-        st.warning("Nenhum dado disponível para exibição.")
+st.title("📊 Dashboard de Monitoramento")
 
-if __name__ == "__main__":
-    main()
+# Sidebar for filters
+with st.sidebar:
+    st.header("Filtros")
+    estados = ["Todos", "MG", "SP", "RJ"]
+    estado = st.selectbox("Estado", estados)
+    periodo = st.slider("Período (dias)", min_value=7, max_value=365, value=30)
+    if st.button("Test API Connection"):
+        try:
+            response = requests.get(st.secrets["api"]["url"])
+            response.raise_for_status()
+            st.success(f"API connection successful! Status code: {response.status_code}")
+        except Exception as e:
+            st.error(f"API connection failed: {str(e)}")
+
+# Load data
+data = get_realtime_data()
+
+if data is not None and not data.empty:
+    # Apply filters
+    if estado != "Todos":
+        data = data[data['estado'] == estado]
+    if 'data' in data.columns:
+        end_date = data['data'].max()
+        start_date = end_date - pd.Timedelta(days=periodo)
+        data = data[(data['data'] >= start_date) & (data['data'] <= end_date)]
+    
+    # Display visualizations
+    try:
+        chart = create_time_series_chart(data)
+        map_fig = create_incidence_map(data)
+        st.plotly_chart(chart, use_container_width=True)
+        st.plotly_chart(map_fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error generating visualizations: {str(e)}")
+        logger.error(f"Visualization error: {str(e)}")
+else:
+    st.warning("Nenhum dado disponível para exibição.")
